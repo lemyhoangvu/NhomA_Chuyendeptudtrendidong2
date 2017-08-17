@@ -1,0 +1,680 @@
+﻿https://viblo.asia/p/tim-hieu-ve-google-map-api-ZWApGxJ3R06y
+TÌM HIỂU VỀ GOOGLE MAP API
+I. Tổng quan về Google API
+
+1. Tương tác giữa Server App và Google Servers
+
+Để xử dụng các dịch vụ của Google bạn cần tạo 1 tài khoản mới(project service) trên https://console.developers.google.com.
+
+Service Accounts xác thực đối tượng truy cập Google API’s bằng cách sử dụng OAuth trên danh nghĩa là 1 ứng dụng web thay vì là 1 người dùng. Tức là nó sử dụng chứng chỉ tài khoản dịch vụ của ứng dụng để chứng thực.
+
+Trước khi tạo request truy cập API, cần phải có 1 access token bằng cách sử dụng các tài khoản dịch vụ đã được chứng nhận. request này là POST request với các params như grant-type và JWT(JSON Web Token) đã đăng nhập bằng key.
+
+Các loại tham số cấp đầu tiên là 1 jet-bearer (chỉ cần 1 access token mà không cần refresh token). Param thứ 2 là JWT chứa thông tin xác thực tài khoản trong chuỗi mã hóa được định dạng trước chứa tiêu đề, tập các yêu cầu(claim set) và chữ ký. Tiêu đề định nghĩa thuật toán signin được sử dụng trong việc signing JWT, claim set chứa địa chỉ email của tài khoản dịch vụ, phạm vi, thời gian hết hạn... Chữ ký là thành phần có chữ ký của tiêu đề và claim set
+
+Sau khi tạo request tới máy chủ ủy quyền, chúng ta nhận được một access token kéo dài ít nhất là 1 giờ. Sử dụng access token này, chúng ta có thể truy cập vào Google APIs theo cách sau : sử dụng user’s credential, cách thức như hình dưới đây :
+
+serviceaccount.png
+
+Tiến trình trên yêu cầu ứng dụng phải tạo và ký hiệu mã hóa JWT's, rất dễ để phạm sai lầm nghiêm trọng tác động rất lớn tới sự an toàn của ứng dụng. Thay vào đó tất cả có thể được thực hiện bởi việc sử dụng các thư viện client . Ruby chứa gem google_api_client cho việc lấy `access token, tạo ra các yêu cầu để truy cập vào API và phân tích kết quả.
+
+Dưới đây là đoạn mã để truy cập Google API's sử dụng Google Service Account.
+
+# Initialize the client
+client = Google::APIClient.new(application_name: 'Service account demo', application_version: '0.0.1')
+
+# load and decrypt private key
+key = Google::APIClient::KeyUtils.load_from_pkcs12('path/to/key/file', 'notasecret')
+
+# generate request body for authorization
+client.authorization = Signet::OAuth2::Client.new(
+                         :token_credential_uri => 'https://accounts.google.com/o/oauth2/token',
+                         :audience             => 'https://accounts.google.com/o/oauth2/token',
+                         :scope                => 'https://www.googleapis.com/auth/calendar',
+                         :issuer               => '123456-abcdef@developer.gserviceaccount.com',
+                         :signing_key          => key)
+
+# fetch access token
+client.authorization.fetch_access_token!
+
+# load API definition
+service = client.discovered_api('calendar', 'v3')
+
+# access API by using client
+client.execute(...)
+Nếu gặp phải lỗi invalid grant trong khi truy cập API thì hãy đảm bảo rằng thời gian hệ thống của bạn trong sync (sử dụng NTP service) và sử dụng đúng cặp public/private key.
+II. Google Map API
+
+1. Tổng quan
+
+1.1. Google Map API là gì?
+
+Google Map là một dịch vụ ứng dụng vào công nghệ bản đồ trực tuyến trên web miễn phí được cung cấp bởi Google, hỗ trợ nhiều dịch vụ khác của Google đặc biệt là dò đường và chỉ đường; hiển thị bản đồ đường sá, các tuyến đường tối ưu cho từng loại phương tiện, cách bắt xe và chuyển tuyến cho các loại phương tiện công cộng (xe bus, xe khách ...), và những địa điểm (kinh doanh, trường học, bệnh viện, cây ATM...) trong khu vực cũng như khắp nơi trên thế giới.
+
+Map API là gì?
+
+Là một phương thức cho phép 1 website B sử dụng dịch vụ bản đồ của website A (gọi là Map API) và nhúng vào website của mình (site B). Site A ở đây là google map, site B là các website cá nhân hoặc tổ chức muốn sử dụng dịch vụ của google (di chuột, room, đánh dấu trên bản đồ…)
+
+Các ứng dụng xây dựng trên maps được nhúng vào trang web cá nhân thông qua các thẻ javascripts do vậy việc sử dụng API google rất dễ dàng.
+
+Google Map API đã được nâng cấp lên phiên bản v3 không chỉ hỗ trợ cho các máy để bàn truyền thống mà cho cả các thiết bị di động; các ứng dụng nhanh hơn và nhiều hơn .
+
+Các dịch vụ hoàn toàn miễn phí với việc xây dựng một ứng dụng nhỏ. Trả phí nếu đó là việc sử dụng cho mục đích kinh doanh, doanh nghiệp.
+
+1.2. Một số ứng dụng của Google Map API
+
+Đánh dấu các địa điểm trên bản đồ kèm theo thông tin cho địa điểm đó : khu vui chơi giải trí, nhà hàng khách sạn, cây ATM, bệnh viện, trường học,… bất cứ địa điểm nào bạn muốn
+Chỉ dẫn đường đến các địa điểm cần tìm(đường tối ưu và nhiều option khác),chỉ dẫn đường giao thông công cộng, có thể là các địa điểm cung cấp như trên. Ở đây sử dụng các service google cung cấp.
+Khoanh vùng khu vực: các trung tâm kinh tế, khu đô thị, khu ô nhiễm…
+Tình trạng giao thông các khu vực… từ đó đưa ra các giải pháp…
+1.3. Tạo 1 Google Map đơn giản
+
+1.3.1. Tạo 1 API Key
+
+Truy cập vào https://code.google.com/apis/console và đăng nhập bằng tài khoản gmail của mình.
+Click the APIs & auth -> APIs.
+Kéo xuống dưới tìm Google Maps JavaScript API v3 và kích hoạt dịch vụ bằng việc click vào button chuyển trạng thái từ OFF sang ON.
+Click API Access -> Create new Browser key..., một API key sẽ hiện lên và bạn sẽ coppy lại để sử dụng.
+Selection_013.png
+1.3.2. Lấy kinh độ, vĩ độ để hiển thị bản đồ
+
+Truy cập vào http://www.latlong.net/ và nhập địa điểm cần tìm.
+
+1.3.3. Hiển thị bản đồ
+
+<!DOCTYPE html>
+<html>
+      <head>
+        <!-- Add Google API Key -->
+        <script src="http://maps.googleapis.com/maps/api/js?key=#{your_app_key}&sensor=false">
+        </script>
+        <script>
+          //Khoi tao Map
+          function initialize() {
+            //Khai bao cac thuoc tinh
+            var mapProp = {
+              //Tam ban do, quy dinh boi kinh do va vi do
+              center:new google.maps.LatLng(51.508742, -0.120850),
+              //set default zoom cua ban do khi duoc load
+              zoom:5,
+              //Dinh nghia type
+              mapTypeId:google.maps.MapTypeId.ROADMAP
+            };
+            //Truyen tham so cho cac thuoc tinh Map cho the div chua Map
+            var map=new google.maps.Map(document.getElementById("googleMap"), mapProp);
+          }
+          google.maps.event.addDomListener(window, 'load', initialize);
+        </script>
+      </head>
+
+      <body>
+        <!-- Khai bao the div chua Map -->
+        <div id="googleMap" style="width:500px;height:380px;"></div>
+      </body>
+</html>
+2. Google Maps Overlays (Lớp phủ)
+
+Lớp phủ(overlays) là các đối tượng trên bản đồ, được xác định bởi tọa độ vĩ độ/ kinh độ.
+
+Các loại lớp phủ :
+
+Marker : xác định một điểm trên bản đồ hoặc đánh dấu địa điểm dựa trên vĩ độ và kinh độ, có thể được hiển thị bằng icon (hình ảnh) tùy chỉnh của người dùng ví dụ như icon dưới đây:
+
+download.jpg
+
+Polyline : chuỗi các đường thẳng trên bản đồ.
+
+Polygon : chuỗi các đường thẳng trên bản đồ và các khối "closed" (tô màu cho 1 khối kín các điểm)
+
+Circle and Rectangle : đường tròn và hình chữ nhật.
+
+Info Windows : hiển thị nội dung trong 1 popup ballon ở phía trên của map.
+
+Custom overlays
+
+Chi tiết : http://www.w3schools.com/googleAPI/google_maps_overlays.asp
+
+2.1. Add 1 marker
+
+add marker vào map bằng cách sử dụng method setMap() :
+
+var marker=new google.maps.Marker({
+  position:myCenter,
+  });
+
+marker.setMap(map);
+position : bắt buộc, quy định tọa độ LatLng của điểm được đánh dấu. (ở đây là tọa độ của biến myCenter)
+2.2. Hiệu ứng cho Marker
+
+var marker=new google.maps.Marker({
+  position:myCenter,
+  animation:google.maps.Animation.BOUNCE
+  });
+
+marker.setMap(map);
+animation: cách thức chuyển động của icon của điểm đánh dấu. CÓ 2 cách : DRAG (đứng yên), Bounce (dao động theo quỹ đạo lên - xuống).
+2.3. Icon thay thế cho Marker
+
+var marker=new google.maps.Marker({
+  position:myCenter,
+  icon:'pinkball.png'
+  });
+
+marker.setMap(map);
+icon(tùy chọn): hình ảnh tùy chọn mà bạn muốn hiển thị thay thế hình ảnh mặc định. Dùng tùy chọn này thay thế cho marker.setIcon(link đến hình ảnh trong thư mục), ví dụ cho icon:'pinkball.png' -> kết quả :
+
+Selection_014.png
+
+2.4. Polyline
+
+Một Polyline là 1 đường được vẽ để nối 1 loạt các tọa độ(các điểm chỉ định trước (ví dụ : lộ trình của 1 chuyến đi, 1 khu vực địa lý... )
+
+Các thuộc tính của 1 Polyline :
+
+path : quy định cụ thể 1 số điểm (kinh độ - vĩ độ) cho dòng
+strokeColor : màu cho dòng (màu định dạng format: "#FFFFFF")
+strokeOpacity : độ mờ đục của dòng (là giá trị trong khoảng 0.0 và 1.0)
+strokeWeight : xác định độ rộng của dòng (tính theo pixel)
+editable : xác định quyền chỉnh sửa của người dùng đối với dòng (true / false)
+// định nghĩa 1 trip: stavanger-amsterdam-london
+var myTrip = [stavanger,amsterdam,london];
+var flightPath = new google.maps.Polyline({
+  //xác định các điểm cần nối trên bản đồ
+  path:myTrip,
+  // màu cho dòng : màu xanh lục
+  strokeColor:"#0000FF",
+  // độ đậm : 0.8
+  strokeOpacity:0.8,
+  // độ rộng line : 2px
+  strokeWeight:2
+});
+
+2.5. Polygon
+
+Polygon tương tự như polyline nhưng có thêm tính năng khoanh vùng (xác định 1 tập hợp các điểm tạo thành 1 khối kín)
+
+Thuộc tính tương tự như polyline nhưng có thêm 2 thuộc tính sau:
+
+fillColor : chỉ định màu của khu vực được xác định (màu định dạng : "#FFFFFF")
+fillOpacity : độ mờ đục của vùng xác định (giá trị trong khoảng 0.0 -> 1.0)
+var myTrip = [stavanger,amsterdam,london,stavanger];
+var flightPath = new google.maps.Polygon({
+  path:myTrip,
+  strokeColor:"#0000FF",
+  strokeOpacity:0.8,
+  strokeWeight:2,
+  fillColor:"#0000FF",
+  fillOpacity:0.4
+});
+
+2.5. Circle
+
+Các thuộc tính :
+
+center : xác định trung tâm của vòng tròn
+
+radius : bán kính của đường tròn (mét)
+
+strokeColor : màu cho đường viền (định dạng : "#FFFFFF")
+
+strokeOpacity : độ mờ đục của đường viền (giá trị trong khoảng 0.0 -> 1.0)
+
+strokeWeight : độ rộng của đường viền (px)
+
+fillColor : chỉ định màu của khu vựcbên trong đường tròn (màu định dạng : "#FFFFFF")
+
+fillOpacity : độ mờ đục của vùng xác định (giá trị trong khoảng 0.0 -> 1.0)
+
+editable : xác định quyền chỉnh sửa của người dùng đối với dòng (true / false)
+
+var myCity = new google.maps.Circle({
+  center:amsterdam,
+  radius:40000,
+  strokeColor:"#0000FF",
+  strokeOpacity:0.8,
+  strokeWeight:2,
+  fillColor:"#0000FF",
+  fillOpacity:0.4
+});
+
+2.6. InfoWindow
+
+show 1 InfoWindow là 1 đoạn text cho 1 marker:
+
+var infowindow = new google.maps.InfoWindow({
+  // nội dung của InfoWindow
+  content:"Hello World!"
+  });
+
+infowindow.open(map,marker);
+
+2.7. Tổng hợp các nội dung trên
+
+Ví dụ về đánh dấu địa điểm cho tòa nhà Landmark72 :
+Vào trang http://www.latlong.net/ để lấy tọa độ của địa điểm bạn muốn (ví dụ ở đây là
+(21.017324, 105.784054)) để điền vào đoạn code sau :
+<!DOCTYPE html>
+<html>
+<head>
+<script
+src="http://maps.googleapis.com/maps/api/js">
+</script>
+
+<script>
+// khai báo tọa độ của place
+var myCenter=new google.maps.LatLng(21.017324, 105.784054);
+
+function initialize()
+{
+var mapProp = {
+  center:myCenter,
+  zoom:5,
+  mapTypeId:google.maps.MapTypeId.ROADMAP
+  };
+
+var map=new google.maps.Map(document.getElementById("googleMap"),mapProp);
+
+var marker=new google.maps.Marker({
+  position: myCenter,
+  //icon: "pinkball.png",
+  //title: "Landmark 72 ^_^",
+  //draggable: true,
+  //animation:google.maps.Animation.BOUNCE,
+  });
+
+marker.setMap(map);
+}
+
+google.maps.event.addDomListener(window, 'load', initialize);
+</script>
+</head>
+
+<body>
+<div id="googleMap" style="width:500px;height:380px;"></div>
+</body>
+</html>
+
+Trong đó :
+
+map(tùy chọn): quy định đối tượng bản đồ được đánh dấu. nếu thuộc tính này được khai báo trong đây nó sẽ thay thế cho marker.setMap(map).
+
+title(tùy chọn): tiêu đề của địa điểm (khi trỏ chuột vào vị trí điểm đó).
+
+draggable(tùy chọn): thể hiện sự chuyển động của điểm được đánh dấu. Nếu set giá trị TRUE thì tính động được khởi động (có thể di chuyển icon đánh dấu điểm hiện tại sang 1 địa điểm khác), hình minh họa :
+
+3. Google Map Event
+
+Sự kiện gồm 2 loại:
+
+UI Event: Lắng nghe sự kiện từ người dùng.
+MVC State change: Lắng nghe sự kiện từ sự thay đổi giá trị của các thuộc tính trên Map.
+Để lắng nghe sự kiện, ta sử dụng phương thức addListener(). Phương thức này nhận vào 1 đối tượng, 1 kiểu sự kiện để lắng nghe và 1 phương thức xử lý khi sự kiện xảy ra.
+3.1. UI Event
+
+Một số đối tượng trong Maps API được thiết kế để đáp ứng với sự kiện người sử dụng chẳng hạn như các sự kiện từ chuột hoặc bàn phím . Một đối tượng google.maps.Marker có thể lắng nghe người sử dụng các sự kiện sau đây : click, dblclick, mouseup, mousedown, mouseover, mouseout.
+Ví dụ:
+
+Click vào 1 marker để zoom bản đồ:
+// Phóng to 9 lần khi click marker
+google.maps.event.addListener(marker,'click',function() {
+  map.setZoom(9);
+  map.setCenter(marker.getPosition());
+  });
+  
+  Mở 1 InfoWindow khi click vào Marker:
+var infowindow = new google.maps.InfoWindow({
+  content:"Hello World!"
+  });
+//bắt sự kiện click marker
+google.maps.event.addListener(marker, 'click', function() {
+  //mở infowindow
+  infowindow.open(map,marker);
+  });
+  
+  2. MVC State Change
+
+a. Các sự kiện:
+
+zoom_changed: sự kiện sẽ thực thi khi ta zoom size trên map
+center_changed: sự kiện sẽ thực thi khi thuộc tính center của map thay đổi
+title_changed: sự kiện sẽ thực thi khi thuộc tính title của map thay đổi
+heading_changed: sự kiện sẽ thực thi khi thuộc tính heading của map thay đổi
+dragstart: sự kiện sẽ thực thi khi người dùng bắt đầu drag bản đồ
+drag: sự kiện sẽ thực thi khi người dùng drag bản đồ
+dragend: sự kiện sẽ thực thi khi người dùng kết thúc drag bản đồ
+maptypeid_changed: sự kiện sẽ thực thi khi thuộc tính maptypeid của map thay đổi
+b. Event Listeners (lắng nghe sự kiện)
+Handling Events
+Ví dụ:
+
+Pan Back to Marker - Quay lại điểm đánh dấu (quay lại vị trí cũ sau n giây sau khi kéo marker)
+
+Khi di chuyển chuột làm thay đổi bản đồ, sự kiện này giúp điểm đánh dấu (marker) luôn hiển thị ở vị trí trung tâm của bản đồ
+
+google.maps.event.addListener(map,'center_changed',function() {
+  // set thời gian quay lại là 3s
+  window.setTimeout(function() {
+    map.panTo(marker.getPosition());
+  },3000);
+});
+
+Truyền tham số cho UI Events
+Các sự kiện người dùng trong Google Map API thường được thêm vào một tham số sự kiện và tham số có thể được truy cập bằng sự kiện listener khi sự kiện xảy ra.
+Ví dụ:
+Set Markers and Open InfoWindow for Each Marker (tạo marker và infowindow tương ứng khi click vào 1 poin nào đó trong bản đồ)
+google.maps.event.addListener(map, 'click', function(event) {
+  placeMarker(event.latLng);
+  });
+//hàm placeMarker() sẽ thay thế 1 điểm được click bằng 1 marker và infowindow có chứa thông tin về tọa độ của điểm
+function placeMarker(location) {
+  var marker = new google.maps.Marker({
+    position: location,
+    map: map,
+  });
+  var infowindow = new google.maps.InfoWindow({
+    content: 'Latitude: ' + location.lat() +
+    '<br>Longitude: ' + location.lng()
+  });
+  infowindow.open(map,marker);
+}
+
+Sử dụng Closeres trong sự kiện Listerner
+Các event Listerner thường sử dụng Closures để truy cập đến các biến thường không nằm trong đối tượng của các sự kiện đó.
+Ví dụ: đoạn code dưới đây dùng Clousures để gán một thông điệp bí mật đến tập các marker, khi click vào mỗi marker sẽ hiện lên một phần của thông điệp ấy :
+function initialize() {
+  var mapOptions = {
+    zoom: 4,
+    center: new google.maps.LatLng(-25.363882, 131.044922)
+  };
+
+  var map = new google.maps.Map(document.getElementById('map-canvas'),
+      mapOptions);
+
+  // Thêm ngẫu nhiên 5 marker
+  var southWest = new google.maps.LatLng(-31.203405, 125.244141);
+  var northEast = new google.maps.LatLng(-25.363882, 131.044922);
+
+  var bounds = new google.maps.LatLngBounds(southWest, northEast);
+  map.fitBounds(bounds);
+
+  var lngSpan = northEast.lng() - southWest.lng();
+  var latSpan = northEast.lat() - southWest.lat();
+
+  for (var i = 0; i < 5; i++) {
+    var position = new google.maps.LatLng(
+        southWest.lat() + latSpan * Math.random(),
+        southWest.lng() + lngSpan * Math.random());
+    var marker = new google.maps.Marker({
+      position: position,
+      map: map
+    });
+
+    marker.setTitle((i + 1).toString());
+    attachSecretMessage(marker, i);
+  }
+}
+// 5 markers chỉ ra 1 secret message khi được click nhưng thông điệp không phải là trong dữ liệu mẫu của marker
+function attachSecretMessage(marker, num) {
+  var message = ['This', 'is', 'the', 'secret', 'message'];
+  var infowindow = new google.maps.InfoWindow({
+    content: message[num]
+  });
+
+  google.maps.event.addListener(marker, 'click', function() {
+    infowindow.open(marker.get('map'), marker);
+  });
+}
+google.maps.event.addDomListener(window, 'load', initialize);
+
+Thiết lập và truy xuất thuộc tính trong event Handlers
+
+Trong các sự kiện MVC State change chúng ta có thể truy xuất và thiết lập giá trị trong quá trình sự kiện được kích hoạt bằng các phương thức getProperties(), setProperties() trên đối tượng thực thi sự kiện.
+
+Ví dụ: ta sẽ thiết lập một xử lý sự kiện để đáp ứng phóng to bản đồ bằng cách đưa ra một cửa sổ thông tin hiển thị mức độ đó.
+
+function initialize() {
+  var mapOptions = {
+    zoom: 4,
+    center: new google.maps.LatLng(-25.363882, 131.044922)
+  };
+
+  var map = new google.maps.Map(document.getElementById('map-canvas'),
+      mapOptions);
+
+  var marker = new google.maps.Marker({
+    position: map.getCenter(),
+    map: map,
+    title: 'Click to zoom'
+  });
+
+  google.maps.event.addListener(map, 'center_changed', function() {
+    window.setTimeout(function() {
+      map.panTo(marker.getPosition());
+    }, 3000);
+  });
+
+  google.maps.event.addListener(marker, 'click', function() {
+    map.setZoom(8);
+    map.setCenter(marker.getPosition());
+  });
+}
+google.maps.event.addDomListener(window, 'load', initialize);
+
+Listening to DOM Events (lắng nghe sự kiện từ DOM)
+
+Google Map Api hỗ trợ hai cách lắng nghe sự kiện từ DOM:
+
+** a. Sử dụng phương thức**
+
+function initialize() {
+  var mapOptions = {
+    zoom: 4,
+    center: new google.maps.LatLng(-25.363882, 131.044922)
+  };
+
+  var map = new google.maps.Map(document.getElementById('map-canvas'),
+      mapOptions);
+
+  var marker = new google.maps.Marker({
+    position: map.getCenter(),
+    map: map,
+    title: 'Click to zoom'
+  });
+
+  google.maps.event.addListener(map, 'center_changed', function() {
+    // quay trở lại marker sau 3 giây kể từ  khi vị trí trung tâm bị thay đổi
+    window.setTimeout(function() {
+      map.panTo(marker.getPosition());
+    }, 3000);
+  });
+
+  google.maps.event.addListener(marker, 'click', function() {
+    map.setZoom(8);
+    map.setCenter(marker.getPosition());
+  });
+}
+// sử dụng phương thức addDomListener để nghe ngóng sự kiện
+google.maps.event.addDomListener(window, 'load', initialize);
+Giải thích :
+
+addDomListener(instance:Object, eventName:string, handler:Function)
+instance : có thể là một DOM element hỗ trợ bởi brownser bao gồm:
+
+các thành phần của DOM: window hoặc document.body.myform.
+
+tên của element như: document.getElementById(“foo”).
+
+evenName : tên sự kiện, ở đây là 'load'.
+
+handler: là một phương thức khởi tạo map.
+
+b. Sử dụng sự kiện onload() của tài liệu HTML trong thẻ
+
+<script>
+    function initialize() {
+        // khởi tạo bản đồ
+    }
+</script>
+<body onload="initialize()">
+    <div id="map-canvas"></div>
+</body>
+4. Map Controls (Điều khiển)
+
+4.1. The Default Controls (Control mặc định)
+
+Control mặc định thiết lập cho Google Map gồm:
+
+Zoom – hiển thị 1 slider hoặc button “+/-” để điều khiển độ zoom (zoom level) của bản đồ
+Pan – công cụ để dịch chuyển bản đồ sang trái, phải, trên, dưới.
+MapType – cho phép người dùng chuyển đổi giữa các loại bản đồ (roadmap và satellite)
+Street View – hiển thị 1 icon Pegman (hình người) để có thể kéo bản đồ để enable Street View (xem chi tiết về đường phố).
+4.2. Một số control khác
+
+Scale – hiển thị 1 thành phần chia tỷ lệ bản đồ
+Rotate – hiển thị một biểu tượng nhỏ hình tròn để xoay bản đồ
+Overview Map – hiển thị một thumbnail overview map cho phép xem bản đồ hiện tại trong một khu vực rộng hơn.
+Bạn có thể chỉ định control nào được hiển thị khi tạo bản đồ (bên trong MapOptions) hoặc gọi bởi setOptions() để thay đổi các tùy chọn.
+
+4.3. Vô hiệu hóa các control mặc định
+
+Thiết lập thuộc tính disableDefaultUI (trong Map options object) thành true:
+
+disableDefaultUI:true
+
+4.4. Bật tất cả các control
+
+Một số control xuất hiện trên bản đồ theo mặc định, trong khi những control khác sẽ không xuất hiện trừ khi ta thiết lập chúng.
+Thêm hoặc xóa các control từ bản đồ được quy định trong Map options object.
+Thiết lập control thành true để làm nó hiển thị (visible). Thiết lập control thành false để ẩn nó đi.
+Ví dụ, bật tất cả các control:
+panControl:true,
+zoomControl:true,
+mapTypeControl:true,
+scaleControl:true,
+streetViewControl:true,
+overviewMapControl:true,
+rotateControl:true
+
+4.5. Chỉnh sửa controls
+
+Một số map control có thể cấu hình được.
+
+Các control có thể được sửa đổi bằng cách xác định các trường control options.
+
+Ví dụ, các tùy chỉnh để thay đổi một Zoom control được quy định bởi trường zoomControlOptions. Trường zoomControlOptions có thể chứa:
+
+`google.maps.ZoomControlStyle.SMALL` – hiển thị 1 `mini-zoom` control (chỉ có 2 button + và -)
+
+`google.maps.ZoomControlStyle.LARGE` – hiển thị `zoom control` trượt tiêu chuẩn
+
+`google.maps.ZoomControlStyle.DEFAULT` – chọn zoom control tốt nhất dựa trên kích thước `device` và `map`
+zoomControl:true,
+zoomControlOptions: {
+    style:google.maps.ZoomControlStyle.SMALL
+}
+
+Chú ý : Khi modify 1 control, phải luôn enable control đầu tiên (set là true)
+
+Các control có thể cấu hình khác là MapType control
+
+Có thể thiết lập type control bởi trường mapTypeControlOptions. Trường mapTypeControlOptions có thể chứa:
+
+google.maps.MapTypeControlStyle.HORIZONTAL_BAR – hiển thị 1 button cho mỗi map type
+
+google.maps.MapTypeControlStyle.DROPDOWN_MENU – chọn map type thông qua 1 dropdown menu
+
+google.maps.MapTypeControlStyle.DEFAULT – hiển thị hành vi mặc định (phụ thuộc kíchcỡ màn hình - screen size)
+
+mapTypeControl:true,
+mapTypeControlOptions: {
+    style:google.maps.MapTypeControlStyle.DROPDOWN_MENU
+}
+
+Bạn cũng có thể xác định vị trí control, với thuộc tính ControlPosition:
+mapTypeControl:true,
+mapTypeControlOptions: {
+    style:google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+    // vị trí top center
+    position:google.maps.ControlPosition.TOP_CENTER
+}
+
+4.6. Control tùy chỉnh-Custom Controls
+
+Dưới đây là ví dụ tạo một control tùy chỉnh mà luôn luôn đưa bạn trở lại London, khi click vào bản đồ(nếu bản đồ được kéo):
+
+controlDiv.style.padding = '5px';
+var controlUI = document.createElement('div');
+controlUI.style.backgroundColor = 'yellow';
+controlUI.style.border='1px solid';
+controlUI.style.cursor = 'pointer';
+controlUI.style.textAlign = 'center';
+controlUI.title = 'Set map to London';
+controlDiv.appendChild(controlUI);
+var controlText = document.createElement('div');
+controlText.style.fontFamily='Arial,sans-serif';
+controlText.style.fontSize='12px';
+controlText.style.paddingLeft = '4px';
+controlText.style.paddingRight = '4px';
+controlText.innerHTML = '<b>Home<b>'
+controlUI.appendChild(controlText);
+
+5. Google Maps Types
+
+5.1. Google Maps - Basic Map Types
+
+ROADMAP (bản đồ truyền thống, default 2D map)
+SATELLITE (photographic map)
+HYBRID (photographic map + tên đường và tên thành phố)
+TERRAIN (bản đồ với hệ thống sông ngòi, núi....)
+Kiểu của map được xác định bởi thuộc tính mapTypeId :
+var mapProp = {
+  center:new google.maps.LatLng(51.508742,-0.120850),
+  zoom:7,
+  // định kiểu cho bản đồ là HYBRID
+  mapTypeId: google.maps.MapTypeId.HYBRID
+};
+Hoặc có thể gọi method setMapTypeId() :
+
+map.setMapTypeId(google.maps.MapTypeId.HYBRID);
+5.2. Google Maps - 45° Perspective View (view phối cảnh 45°)
+
+Bản đồ loại SATELLITE và HYBRID hỗ trợ xem phối cảnh hình ảnh 45° cho 1 số vùng xác định (chỉ các vùng ở zoom level cao)
+
+Nếu zoom vào 1 vùng với view phối cảnh 45°, bản đồ sẽ tự động thay đổi phối cảnh, thêm nữa thêm vào 1 số thứ sau :
+
+Một la bàn hình bánh xe cho Pan control, cho phép bạn xoay hình ảnh.
+1 Rotate control nằm giữa Pan control và Zoom control, cho phép bạn xoay ảnh 90°
+1 toggle control (công tắc bật - tắt) để điều chỉnh chế độ view phối cảnh 45°
+Ví dụ:
+var mapProp = {
+center:myCenter,
+zoom:18,
+mapTypeId:google.maps.MapTypeId.HYBRID
+};
+Kết quả :
+
+![Selection_025.png](/uploads/064d7a90-f681-428c-9bb0-a80f33d6ad3b.png)
+
+![Selection_024.png](/uploads/6e21e88b-3c13-4568-8dfb-d30597f0a621.png)
+
+5.3. Google Maps - Disable 45° Perspective View - setTilt(0) (tắt chức năng view phối cảnh 45°)
+
+Tắt chức năng này bằng cách gọi setTilt(0) trong Map object :
+
+map.setTilt(0);
+Tip : để enable 45° perspective view ở đằng sau, gọi setTilt(45)
+
+6. Google Maps API Reference
+
+6.1. Maps API Map() Constructor
+
+Tạo 1 Google Map :
+
+var map = new google.maps.Map(document.getElementById("googleMap"),mapOpt);
+6.2. Định nghĩa và sử dụng
+
+Map() constructor tạo 1 bản đồ mới bên trong 1 thành phần HTML xác định (thường là <div>)
+
+6.3. Cú pháp
+
+new google.maps.Map(HTMLElement,MapOptions)
