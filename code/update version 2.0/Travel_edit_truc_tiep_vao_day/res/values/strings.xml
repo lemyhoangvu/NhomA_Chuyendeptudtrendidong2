@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Travel</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_new">New</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_search">Search</string>
+    <string name="action_share">Share</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="title_activity_tween_animation">Tween Animation Activity</string>
+    <string name="title_activity_view_animation">View Animation Activity</string>
+
+    <string-array name="maps_type">
+        <item>Map type None</item>
+        <item>Map type Normal</item>
+        <item>Map type Satellite</item>
+        <item>Map type Hybrid</item>
+        <item>Map type Terrain</item>
+    </string-array>
+
+</resources>
