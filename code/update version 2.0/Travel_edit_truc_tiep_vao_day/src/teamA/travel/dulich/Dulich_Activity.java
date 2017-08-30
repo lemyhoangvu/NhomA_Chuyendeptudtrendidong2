@@ -20,7 +20,10 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.app.ActionBar.OnNavigationListener;
 import android.content.ClipData.Item;
+import android.content.Context;
 import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.Menu;
@@ -57,6 +60,10 @@ public class Dulich_Activity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.dulich_layout);
         
+        //Kiểm tra kết nối Internet:
+        if (isOnline() == false) {
+            Toast.makeText(this, "Không có kết nối internet", Toast.LENGTH_LONG).show();
+        }
        
    /*     ArrayAdapter<String> adapter = new ArrayAdapter<String>(getBaseContext(), android.R.layout.simple_spinner_dropdown_item, actions);
         
@@ -225,4 +232,12 @@ public class Dulich_Activity extends Activity {
 
     }
 
+    private Boolean isOnline() {
+		ConnectivityManager cm = (ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+		NetworkInfo ni = cm.getActiveNetworkInfo();
+		if(ni != null && ni.isConnected()) {
+		     return true;
+	        }
+		return false;	
+	}
 }
