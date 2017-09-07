@@ -11,8 +11,11 @@ public class sieuthi implements Serializable {
 		private String Time;
 		private String Mota;
 		private String Hinh;
+		private String Hinh1;
+		private String Hinh2;
+		private String Hinh3;
 		
-		public sieuthi(int id, String name, String diachi,String tinh, String sdt, String time, String mota,String hinh){
+		public sieuthi(int id, String name, String diachi,String tinh, String sdt, String time, String mota,String hinh, String hinh1,  String hinh2,  String hinh3){
 			this.id = id;
 			Name = name;
 			Diachi = diachi;
@@ -21,6 +24,9 @@ public class sieuthi implements Serializable {
 			Hinh = hinh;
 			Tinh = tinh;
 			Mota = mota;
+			Hinh1 = hinh1;
+			Hinh2 = hinh2;
+			Hinh3 = hinh3;
 
 			
 		}
@@ -87,6 +93,30 @@ public class sieuthi implements Serializable {
 
 		public void setMota(String mota) {
 			Mota = mota;
+		}
+
+		public String getHinh1() {
+			return Hinh1;
+		}
+
+		public void setHinh1(String hinh1) {
+			Hinh1 = hinh1;
+		}
+
+		public String getHinh2() {
+			return Hinh2;
+		}
+
+		public void setHinh2(String hinh2) {
+			Hinh2 = hinh2;
+		}
+
+		public String getHinh3() {
+			return Hinh3;
+		}
+
+		public void setHinh3(String hinh3) {
+			Hinh3 = hinh3;
 		}
 		
 		

@@ -170,7 +170,10 @@ public class Sieuthi_Activity extends Activity {
                                     sthi.getString("st_sdt"),
                                     sthi.getString("st_time"),
                                     sthi.getString("st_thongtin"),
-                                    sthi.getString("st_hinhanh")
+                                    sthi.getString("st_hinhanh"),
+                                    sthi.getString("st_hinhanh1"),
+                                    sthi.getString("st_hinhanh2"),
+                                    sthi.getString("st_hinhanh3")
                             )
                     );
                 }

@@ -31,7 +31,7 @@ import teamA.travel.R;
 public class Chitiet_dulich extends Activity {
 	TextView textViewdc, textViewsdt,textViewmota, textViewsdt1;
 	ImageView imagesieuthi, imageView1, imageView2, imageView3;
-	Button buttonlienhe, buttonshare;
+	Button buttonlienhe, buttonshare, buttonmap;
 	private Dialog dialog;
 	private String sdt = "";
 	private String diachi = "";
@@ -56,6 +56,8 @@ public class Chitiet_dulich extends Activity {
 		imageView3 = (ImageView) findViewById(R.id.imageView3);
 		buttonlienhe = (Button) findViewById(R.id.buttonlienhe);
 		buttonshare = (Button) findViewById(R.id.buttonshare);
+
+		buttonmap = (Button) findViewById(R.id.buttonmap);
 		
 		Bundle b = getIntent().getExtras();
 		if(b != null) {
@@ -182,6 +184,17 @@ public class Chitiet_dulich extends Activity {
 	            startActivity(sharingIntent);
 	         }
 	      });
+		
+		//khi bấm bản đồ:
+				buttonmap.setOnClickListener(new View.OnClickListener() {
+			         @Override
+			         public void onClick(View v) {
+			        	 
+			        	 Intent searchAddress = new  Intent(Intent.ACTION_VIEW,Uri.parse("geo:0,0?q="+ ten));
+			        	 startActivity(searchAddress);
+
+			         }
+			      });
 }
 	
 

@@ -129,10 +129,18 @@
         android:layout_marginTop="10dp" >
 
         <Button
+            android:id="@+id/buttonmap"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="20dp"
+            android:background="@drawable/map2" />
+
+        <Button
             android:id="@+id/buttonlienhe"
             android:layout_width="50dp"
             android:layout_height="50dp"
-            android:layout_marginLeft="220dp"
+            android:layout_marginLeft="130dp"
             android:layout_marginRight="20dp"
             android:background="@drawable/call"
             android:text=" " />

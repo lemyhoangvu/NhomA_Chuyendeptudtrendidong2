@@ -30,14 +30,17 @@ import teamA.travel.R;
 
 public class Chitiet_sieuthi extends Activity {
 	TextView textViewdc, textViewsdt,textViewmota, textViewsdt1;
-	ImageView imagesieuthi;
-	Button buttonlienhe, buttonshare;
+	ImageView imagesieuthi, imageView1, imageView2, imageView3;
+	Button buttonlienhe, buttonshare, buttonmap;
 	private Dialog dialog;
 	private String sdt = "";
 	private String diachi = "";
 	private String mota = "";
 	private String ten = "";
 	private String url = "";
+	private String url1 = "";
+	private String url2 = "";
+	private String url3 = "";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +53,11 @@ public class Chitiet_sieuthi extends Activity {
 		imagesieuthi = (ImageView) findViewById(R.id.imagesieuthi);
 		buttonlienhe = (Button) findViewById(R.id.buttonlienhe);
 		buttonshare = (Button) findViewById(R.id.buttonshare);
+		buttonmap = (Button) findViewById(R.id.buttonmap);
+
+		imageView1 = (ImageView) findViewById(R.id.imageView1);
+		imageView2 = (ImageView) findViewById(R.id.imageView2);
+		imageView3 = (ImageView) findViewById(R.id.imageView3);
 		
 		Bundle b = getIntent().getExtras();
 		if(b != null) {
@@ -75,7 +83,20 @@ public class Chitiet_sieuthi extends Activity {
 			GetImageThread LoadImageThread = new GetImageThread(ImageloadHandler, url);
 			LoadImageThread.start();
 			
+			url1 = st.getHinh1();
+			ImageDownloadMessageHandler ImageloadHandler1 = new ImageDownloadMessageHandler(imageView1);
+			GetImageThread LoadImageThread1 = new GetImageThread(ImageloadHandler1, url1);
+			LoadImageThread1.start();
 			
+			url2 = st.getHinh2();
+			ImageDownloadMessageHandler ImageloadHandler2 = new ImageDownloadMessageHandler(imageView2);
+			GetImageThread LoadImageThread2 = new GetImageThread(ImageloadHandler2, url2);
+			LoadImageThread2.start();
+			
+			url3 = st.getHinh3();
+			ImageDownloadMessageHandler ImageloadHandler3 = new ImageDownloadMessageHandler(imageView3);
+			GetImageThread LoadImageThread3 = new GetImageThread(ImageloadHandler3, url3);
+			LoadImageThread3.start();
 }
 		
 		
@@ -155,6 +176,18 @@ public class Chitiet_sieuthi extends Activity {
 	            startActivity(sharingIntent);
 	         }
 	      });
+		
+		//khi bấm bản đồ:
+		buttonmap.setOnClickListener(new View.OnClickListener() {
+	         @Override
+	         public void onClick(View v) {
+	        	 
+	        	 Intent searchAddress = new  Intent(Intent.ACTION_VIEW,Uri.parse("geo:0,0?q="+ ten));
+	        	 startActivity(searchAddress);
+
+	         }
+	      });
+
 }
 	
 
