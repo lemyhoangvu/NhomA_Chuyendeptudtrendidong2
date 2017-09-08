@@ -155,6 +155,7 @@ public class Chitiet_lehoi extends Activity {
 	            startActivity(sharingIntent);
 	         }
 	      });
+		
 }
 	
 
